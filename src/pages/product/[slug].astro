@@ -1,0 +1,158 @@
+---
+import "../../styles/global.css";
+import Layout from '../../layouts/Layout.astro';
+import { ProductGallery } from '../../components/react/ProductGallery';
+import { sanityClient } from 'sanity:client';
+
+export async function getStaticPaths() {
+  const products = await sanityClient.fetch<any[]>(`*[_type == "product"]{ "slug": slug.current }`);
+  return products.map(p => ({ params: { slug: p.slug } }));
+}
+
+const { slug } = Astro.params;
+const product = await sanityClient.fetch<any>(`*[_type == "product" && slug.current == $slug][0]{
+  _id,
+  name,
+  "slug": slug.current,
+  price,
+  description,
+  "imageUrl": images[0].asset->url,
+  "images": images[].asset->url,
+  "category": category->{title, "slug": slug.current},
+  brand,
+  sku,
+  inStock,
+  inventory
+}`, { slug });
+console.log('Producto encontrado:', product);
+if (!product) {
+  return Astro.redirect('/404');
+}
+
+// product.images ya viene como array de strings con la query correcta
+const productImages = product.images || [];
+const formatPrice = (price: number) => new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(price);
+---
+
+<Layout title={`${product.name} | Catálogo`}>
+  <header class="sticky top-0 z-50 transition-all duration-300 backdrop-header" id="product-header">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between">
+      <a href="/" class="flex items-center gap-2 text-white hover:text-lime transition-colors">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+        <span class="text-sm hidden sm:inline">Volver</span>
+      </a>
+      
+      <a href="/" class="font-display text-xl sm:text-2xl font-semibold text-white hover:text-lime transition-colors">CATÁLOGO</a>
+      
+      <div class="w-10 sm:w-20"></div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20">
+      <div class="sticky top-24">
+        <ProductGallery client:load images={productImages} name={product.name} />
+      </div>
+
+      <div class="flex flex-col gap-6">
+        <nav class="flex items-center gap-2 text-sm text-stone-400">
+          <a href="/" class="hover:text-stone-800">Catálogo</a>
+          <span>/</span>
+          <span class="text-stone-800">{product.name}</span>
+        </nav>
+
+        <h1 class="font-display text-4xl sm:text-5xl text-stone-800 leading-tight">{product.name}</h1>
+        
+        {product.brand && (
+          <p class="text-sm text-stone-400 uppercase tracking-wider">{product.brand}</p>
+        )}
+
+        <div class="py-6 border-y border-stone-200">
+          <span class="font-display text-3xl">{formatPrice(product.price)}</span>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <span class={`flex items-center gap-2 text-sm ${product.inStock ? 'text-green-700' : 'text-red-700'}`}>
+            <span class={`w-2 h-2 rounded-full ${product.inStock ? 'bg-green-600' : 'bg-red-600'}`}></span>
+            {product.inStock ? 'Disponible' : 'Agotado'}
+            {product.inventory > 0 && ` (${product.inventory} unidades)`}
+          </span>
+        </div>
+
+        <div class="mt-4">
+          <h2 class="text-xs uppercase tracking-wider text-stone-400 mb-3">Descripción</h2>
+          <p class="text-stone-600 leading-relaxed">{product.description || 'Sin descripción disponible.'}</p>
+        </div>
+
+        <div class="flex flex-col gap-3 mt-2">
+          {product.sku && (
+            <div class="flex justify-between py-3 border-b border-stone-200">
+              <span class="text-sm text-stone-400">SKU</span>
+              <span class="text-sm text-stone-800">{product.sku}</span>
+            </div>
+          )}
+          {product.category && (
+            <div class="flex justify-between py-3 border-b border-stone-200">
+              <span class="text-sm text-stone-400">Categoría</span>
+              <span class="text-sm text-stone-800">{product.category.title}</span>
+            </div>
+          )}
+        </div>
+
+        <div class="mt-4">
+          {product.inStock ? (
+            <button class="w-full py-4 bg-stone-800 text-white border-none rounded-md font-body text-sm uppercase tracking-wider cursor-pointer transition-all duration-200 hover:bg-stone-600">
+              Agregar al carrito
+            </button>
+          ) : (
+            <button class="w-full py-4 bg-transparent text-stone-800 border border-stone-300 rounded-md font-body text-sm uppercase tracking-wider cursor-pointer transition-all duration-200 hover:border-stone-800">
+              Notify cuando esté disponible
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="bg-void border-t border-white/10 py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-6">
+      <div class="flex flex-col gap-1">
+        <span class="font-display text-xl text-white">CATÁLOGO</span>
+        <span class="text-sm text-white/40">Piezas con personalidad</span>
+      </div>
+      <p class="text-sm text-white/40">&copy; 2025 CATÁLOGO.</p>
+    </div>
+  </footer>
+</Layout>
+
+<script>
+  const header = document.getElementById('product-header');
+  let lastScroll = 0;
+  let ticking = false;
+
+  function updateHeader(scrollY: number) {
+    if (scrollY > 50) {
+      header.classList.add('bg-void/95', 'backdrop-blur-lg', 'shadow-xl');
+      header.classList.remove('bg-transparent');
+    } else {
+      header.classList.remove('bg-void/95', 'backdrop-blur-lg', 'shadow-xl');
+      header.classList.add('bg-transparent');
+    }
+  }
+
+  function onScroll() {
+    lastScroll = window.scrollY;
+    if (!ticking) {
+      window.requestAnimationFrame(() => {
+        updateHeader(lastScroll);
+        ticking = false;
+      });
+      ticking = true;
+    }
+  }
+
+  window.addEventListener('scroll', onScroll, { passive: true });
+  updateHeader(window.scrollY);
+</script>

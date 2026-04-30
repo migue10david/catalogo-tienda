@@ -1,11 +1,269 @@
 ---
-import Welcome from '../components/Welcome.astro';
+import "../styles/global.css";
 import Layout from '../layouts/Layout.astro';
+import { Catalog } from '../components/react/Catalog';
+import { sanityClient } from 'sanity:client';
 
-// Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
-// Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
+interface Product {
+  _id: string;
+  name: string;
+  slug: string;
+  price: number;
+  description: string;
+  imageUrl: string;
+  images: string[];
+  category: { title: string; slug: string } | null;
+  brand: string | null;
+  inStock: boolean;
+}
+
+interface CategoryData {
+  _id: string;
+  title: string;
+  slug: string;
+}
+
+const PRODUCTS_QUERY = `*[_type == "product"] | order(_createdAt desc) {
+  _id,
+  name,
+  "slug": slug.current,
+  price,
+  description,
+  "imageUrl": images[0].asset->url,
+  "images": images[].asset->url,
+  "category": category->{title, "slug": slug.current},
+  brand,
+  inStock
+}`;
+
+const products = await sanityClient.fetch<Product[]>(PRODUCTS_QUERY);
+
+const CATEGORIES_QUERY = `*[_type == "category"] | order(title asc) {
+  _id,
+  title,
+  "slug": slug.current
+}`;
+
+const categories = await sanityClient.fetch<CategoryData[]>(CATEGORIES_QUERY);
 ---
 
-<Layout>
-	<Welcome />
+<Layout title="CATÁLOGO">
+  <div class="fixed inset-0 bg-grid pointer-events-none z-0"></div>
+  <div class="fixed inset-0 bg-noise pointer-events-none z-0"></div>
+
+  <header class="fixed top-0 left-0 right-0 z-50 transition-all duration-300 backdrop-header" id="main-header">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16 sm:h-20">
+        <a href="/" class="relative group">
+          <span class="font-display text-2xl sm:text-3xl font-semibold text-white transition-colors group-hover:text-lime">CATÁLOGO</span>
+        </a>
+        
+        <nav class="hidden lg:flex items-center gap-6">
+          <a href="#shop" class="nav-link">Shop</a>
+          <a href="#about" class="nav-link">About</a>
+        </nav>
+
+        <div class="flex items-center gap-3">
+          
+          <button 
+            class="lg:hidden w-10 h-10 flex items-center justify-center text-white hover:text-lime transition-colors"
+            aria-label="Menú"
+            id="mobile-menu-btn"
+          >
+            <svg class="w-6 h-6 menu-icon" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M4 6h16M4 12h16M4 18h16"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="lg:hidden hidden bg-void/95 backdrop-blur-lg" id="mobile-menu">
+      <div class="px-4 py-6 space-y-4">
+        <a href="#shop" class="block text-lg text-white hover:text-lime py-2">Shop</a>
+        <a href="#about" class="block text-lg text-white/70 hover:text-lime py-2">About</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="relative z-10">
+    <section id="shop" class="relative bg-paper py-16 sm:py-24 px-4 sm:px-6 lg:px-8">
+      <div class="absolute top-0 left-0 right-0 h-px bg-void/5"></div>
+      
+      <div class="max-w-7xl mx-auto">
+        <div class="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4 mb-10 sm:mb-12">
+          <div>
+            <p class="text-accent-primary text-xs uppercase tracking-widest font-semibold mb-2">Catálogo</p>
+            <h2 class="font-display text-3xl sm:text-4xl lg:text-5xl">Últimos Lanzamientos</h2>
+          </div>
+          <p class="text-sm text-void/50">{products.length} productos disponibles</p>
+        </div>
+
+        <Catalog client:load products={products} categories={categories} />
+      </div>
+    </section>
+
+    <section id="about" class="py-16 sm:py-24 px-4 sm:px-6 lg:px-8 bg-void text-white">
+      <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20">
+        <div>
+          <h3 class="font-display text-3xl sm:text-4xl mb-6">¿Listo para destacar?</h3>
+          <p class="text-white/50 mb-8 leading-relaxed">Únete a nuestra comunidad y sé el primero en conocer los nuevos lanzamientos. Disfruta de envío gratis en pedidos superiores a $100.</p>
+          <form class="flex flex-col sm:flex-row gap-0">
+            <input 
+              type="email" 
+              placeholder="Tu email"
+              class="flex-1 bg-white/5 border border-white/10 px-5 py-4 text-white placeholder:text-white/30 focus:outline-none focus:border-lime transition-colors"
+            />
+            <button type="submit" class="btn-cta whitespace-nowrap">
+              Suscribirse
+            </button>
+          </form>
+        </div>
+        
+        <div class="flex flex-col sm:flex-row gap-8 sm:gap-12">
+          <div>
+            <h4 class="font-display text-xl mb-4">Shop</h4>
+            <ul class="space-y-3 text-sm text-white/50">
+              <li><a href="#" class="hover:text-lime transition-colors">Zapatos</a></li>
+              <li><a href="#" class="hover:text-lime transition-colors">Hoodies</a></li>
+              <li><a href="#" class="hover:text-lime transition-colors">T-Shirts</a></li>
+              <li><a href="#" class="hover:text-lime transition-colors">Accesorios</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4 class="font-display text-xl mb-4">Empresa</h4>
+            <ul class="space-y-3 text-sm text-white/50">
+              <li><a href="#" class="hover:text-lime transition-colors">About</a></li>
+              <li><a href="#" class="hover:text-lime transition-colors">Contacto</a></li>
+              <li><a href="#" class="hover:text-lime transition-colors">Trabaja con nosotros</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4 class="font-display text-xl mb-4">Síguenos</h4>
+            <div class="flex gap-3">
+              <a href="#" class="w-10 h-10 border border-white/10 flex items-center justify-center hover:border-lime hover:text-lime transition-colors">
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.012-3.584.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073z"/></svg>
+              </a>
+              <a href="#" class="w-10 h-10 border border-white/10 flex items-center justify-center hover:border-lime hover:text-lime transition-colors">
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-5.2 1.74 2.89 2.89 0 012.31-4.64 2.93 2.93 0 01.88.13V9.4a6.84 6.84 0 00-1-.05A6.33 6.33 0 005 20.1a6.35 6.35 0 0010.86-4.43v-5.6a4.85 4.85 0 011.22.01z"/></svg>
+              </a>
+              <a href="#" class="w-10 h-10 border border-white/10 flex items-center justify-center hover:border-lime hover:text-lime transition-colors">
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M23.498 6.186a2.82 2.82 0 00-2-2.955V6a10 10 0 00-10-10h-1.498a10 10 0 00-10 10v.05a2.82 2.82 0 00-.093 1.23A2.82 2.82 0 000 8.5a2.82 2.82 0 002 2.935A10 10 0 0010 21h1.5a10 10 0 0010-10 .08.08 0 000-.15 2.87 2.87 0 00-.002-.035z"/></svg>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="bg-paper px-4 sm:px-6 lg:px-8 py-8 border-t border-void/5">
+      <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
+        <span class="font-display text-xl">CATÁLOGO</span>
+        <p class="text-xs text-void/40">© 2025 CATÁLOGO. Todos los derechos reservados.</p>
+      </div>
+    </footer>
+  </main>
 </Layout>
+
+<script>
+  const header = document.getElementById('main-header');
+  const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+  const mobileMenu = document.getElementById('mobile-menu');
+  let lastScroll = 0;
+  let ticking = false;
+
+  function updateHeader(scrollY: number) {
+    if (scrollY > 50) {
+      header.classList.add('bg-void/95', 'backdrop-blur-lg', 'shadow-xl');
+      header.classList.remove('bg-transparent');
+    } else {
+      header.classList.remove('bg-void/95', 'backdrop-blur-lg', 'shadow-xl');
+      header.classList.add('bg-transparent');
+    }
+  }
+
+  function onScroll() {
+    lastScroll = window.scrollY;
+    if (!ticking) {
+      window.requestAnimationFrame(() => {
+        updateHeader(lastScroll);
+        ticking = false;
+      });
+      ticking = true;
+    }
+  }
+
+  mobileMenuBtn?.addEventListener('click', () => {
+    mobileMenu.classList.toggle('hidden');
+  });
+
+  window.addEventListener('scroll', onScroll, { passive: true });
+  updateHeader(window.scrollY);
+</script>
+
+
+    <!-- <section class="relative min-h-[90vh] flex items-center justify-center overflow-hidden bg-zinc-950 pt-24 pb-16 lg:pt-32">
+  <div class="absolute inset-0 overflow-hidden pointer-events-none">
+    <div class="absolute -top-40 -right-40 w-[500px] h-[500px] bg-indigo-600/20 rounded-full blur-[120px]"></div>
+    <div class="absolute -bottom-40 -left-40 w-[500px] h-[500px] bg-emerald-500/15 rounded-full blur-[120px]"></div>
+  </div>
+  
+  <div class="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="grid lg:grid-cols-2 gap-12 lg:gap-8 items-center">
+      
+
+      <div class="text-center lg:text-left max-w-3xl mx-auto lg:mx-0">
+
+        <div class="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur-md mb-8 shadow-xl animate-fade-in">
+          <span class="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span class="text-white/80 text-xs font-semibold uppercase tracking-widest">Nueva Colección 2026</span>
+        </div>
+
+        <h1 class="text-5xl sm:text-6xl md:text-7xl font-extrabold tracking-tight leading-[1.1] mb-6 text-white">
+          Expresa tu <br class="hidden sm:block" />
+          <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-emerald-400">
+            identidad
+          </span>
+        </h1>
+        
+
+        <p class="text-lg sm:text-xl text-zinc-400 mb-10 max-w-xl mx-auto lg:mx-0 leading-relaxed">
+          Piezas exclusivas que definen tu estilo único. No sigas las tendencias, sé el primero en crearlas con nuestro nuevo catálogo.
+        </p>
+
+        <div class="flex flex-col sm:flex-row justify-center lg:justify-start gap-4 mb-16">
+          <a href="#shop" class="inline-flex justify-center items-center gap-2 px-8 py-4 rounded-full bg-white text-zinc-900 font-bold hover:bg-zinc-200 transition-all hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(255,255,255,0.2)]">
+            Descubrir catálogo
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+            </svg>
+          </a>
+        </div>
+
+
+        <div class="grid grid-cols-3 gap-4 sm:gap-8 pt-8 border-t border-white/10">
+          <div>
+            <span class="block text-3xl sm:text-4xl font-bold text-white mb-1">{products.length || '0'}+</span>
+            <span class="text-xs text-zinc-500 uppercase tracking-wider font-medium">Productos</span>
+          </div>
+          <div>
+            <span class="block text-3xl sm:text-4xl font-bold text-white mb-1">{categories.length || '0'}</span>
+            <span class="text-xs text-zinc-500 uppercase tracking-wider font-medium">Categorías</span>
+          </div>
+          <div>
+            <span class="block text-3xl sm:text-4xl font-bold text-emerald-400 mb-1">100%</span>
+            <span class="text-xs text-zinc-500 uppercase tracking-wider font-medium">Original</span>
+          </div>
+        </div>
+      </div>
+
+
+    </div>
+  </div>
+
+
+  <div class="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center">
+    <span class="text-[10px] text-zinc-500 uppercase tracking-widest mb-3">Scroll</span>
+    <div class="w-[1px] h-12 bg-gradient-to-b from-zinc-500 to-transparent"></div>
+  </div>
+</section> -->
